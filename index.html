@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RayBRIR · Binaural Listening Examples</title>
+<meta name="description" content="Binaural listening examples for RayBRIR: Fast Binaural Room Impulse Response Simulation via Learned Ray Pruning and Directional Energy Compensation (ICASSP 2027 submission).">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --text: #1b1b1a;
+    --muted: #5c5c58;
+    --faint: #8d8d88;
+    --border: #e3e3df;
+    --track: #e3e3df;
+    --c-ref: #0f766e;
+    --c-ours: #1d4ed8;
+    --c-abl: #b45309;
+    --c-anc: #6b7280;
+    --on-c: #ffffff;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214;
+      --surface: #1b1b1e;
+      --text: #ececea;
+      --muted: #a9a9a4;
+      --faint: #7a7a76;
+      --border: #2d2d31;
+      --track: #34343a;
+      --c-ref: #2dd4bf;
+      --c-ours: #7aa7ff;
+      --c-abl: #f5b544;
+      --c-anc: #a3a3a3;
+      --on-c: #111113;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+  a { color: var(--c-ours); }
+  sup { font-size: .68em; line-height: 0; }
+  kbd {
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    display: inline-block; min-width: 18px; padding: 3px 4px; text-align: center;
+    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px;
+    background: var(--surface); color: var(--muted);
+  }
+
+  /* ---------- Header ---------- */
+  header { text-align: center; padding: 48px 0 8px; }
+  .venue {
+    display: inline-block; margin: 0 0 14px; padding: 3px 10px;
+    font-size: 13px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+  }
+  h1 {
+    margin: 0 auto 16px; max-width: 820px;
+    font-size: clamp(1.35rem, 3.2vw, 1.95rem); line-height: 1.25; font-weight: 700;
+    letter-spacing: -0.01em; text-wrap: balance;
+  }
+  h1 .name { color: var(--c-ours); }
+  .authors { margin: 0 0 6px; font-size: 1.02rem; }
+  .authors span { white-space: nowrap; }
+  .affil { margin: 0; color: var(--muted); font-size: .92rem; }
+  .affil span { display: inline-block; margin: 0 8px; }
+  .note { margin: 4px 0 0; color: var(--faint); font-size: .85rem; }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    display: flex; gap: 14px; align-items: flex-start;
+    margin: 28px 0 8px; padding: 14px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--c-ours);
+    border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .callout svg { flex: none; width: 26px; height: 26px; color: var(--c-ours); margin-top: 1px; }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 4px; color: var(--muted); font-size: .93rem; }
+
+  /* ---------- Sections ---------- */
+  section { margin-top: 40px; }
+  h2 {
+    margin: 0 0 14px; padding-bottom: 8px;
+    font-size: 1.15rem; font-weight: 700; border-bottom: 1px solid var(--border);
+  }
+  h3 { margin: 26px 0 10px; font-size: 1rem; font-weight: 700; }
+  p.lead { margin: 0 0 14px; color: var(--muted); }
+
+  /* Conditions legend */
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .legend li {
+    padding: 11px 14px; background: var(--surface);
+    border: 1px solid var(--border); border-left: 4px solid var(--cc); border-radius: 10px;
+  }
+  .legend .t { font-weight: 650; }
+  .legend .t kbd { margin-right: 6px; vertical-align: 1px; }
+  .legend .t em { margin-left: 6px; font-style: normal; font-weight: 500; color: var(--muted); font-size: .9rem; }
+  .legend .d { margin: 3px 0 0; color: var(--muted); font-size: .92rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cc); flex: none; }
+
+  /* What to listen for */
+  .listen { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .listen li {
+    display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start;
+    padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .pair { display: flex; align-items: center; gap: 4px; padding-top: 2px; white-space: nowrap; }
+  .pair .k {
+    display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;
+    background: var(--cc); color: var(--on-c); font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .pair .vs { color: var(--faint); font-size: 13px; }
+  .listen b { font-weight: 650; }
+  .listen p { margin: 2px 0 0; color: var(--muted); font-size: .94rem; }
+
+  /* ---------- Players ---------- */
+  .room-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .player {
+    --c: var(--c-ref);
+    container-type: inline-size;
+    padding: 14px 14px 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
+    transition: border-color .15s;
+  }
+  .player.is-current { border-color: color-mix(in srgb, var(--c) 55%, var(--border)); }
+  .p-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .p-title { font-weight: 700; }
+  .p-status { font-size: 12.5px; color: var(--faint); }
+  .p-status.err { color: #c2410c; }
+  .transport { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .play {
+    flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    display: grid; place-items: center; background: var(--c); color: var(--on-c);
+    transition: background-color .15s, transform .05s;
+  }
+  .play:active { transform: scale(.96); }
+  .play svg { width: 20px; height: 20px; fill: currentColor; }
+  .play .i-pause, .play .i-load { display: none; }
+  .player.is-playing .play .i-play { display: none; }
+  .player.is-playing .play .i-pause { display: block; }
+  .player.is-loading .play .i-play, .player.is-loading .play .i-pause { display: none; }
+  .player.is-loading .play .i-load { display: block; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .seek {
+    --p: 0%;
+    flex: 1; min-width: 0; height: 6px; margin: 0; border-radius: 3px; cursor: pointer;
+    -webkit-appearance: none; appearance: none; outline-offset: 6px;
+    background: linear-gradient(to right, var(--c) var(--p), var(--track) var(--p));
+  }
+  .seek:disabled { cursor: default; opacity: .6; }
+  .seek::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--c); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--c);
+  }
+  .seek::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--c); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--c);
+  }
+  .seek::-moz-range-track { background: transparent; }
+  .time { flex: none; font: 12.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); min-width: 86px; text-align: right; }
+
+  .conds { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cond {
+    flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
+    min-height: 38px; padding: 6px 7px; cursor: pointer; white-space: nowrap;
+    font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.15; color: var(--text);
+    background: transparent; border: 1.5px solid var(--border); border-radius: 8px;
+    transition: background-color .12s, border-color .12s, color .12s;
+  }
+  .cond:hover { border-color: var(--cc); }
+  .cond kbd { border: 0; padding: 2px 3px; min-width: 15px; font-size: 10.5px; background: color-mix(in srgb, var(--cc) 14%, transparent); color: var(--cc); }
+  .cond[aria-checked="true"] { background: var(--cc); border-color: var(--cc); color: var(--on-c); }
+  .cond[aria-checked="true"] kbd { background: color-mix(in srgb, var(--on-c) 22%, transparent); color: var(--on-c); }
+  button:focus-visible, .seek:focus-visible { outline: 2px solid var(--c-ours); outline-offset: 2px; }
+
+  /* Narrow cards: 2 x 2 condition grid instead of a ragged wrap */
+  @container (max-width: 420px) {
+    .conds { display: grid; grid-template-columns: 1fr 1fr; }
+  }
+
+  .hint { margin: 12px 0 0; font-size: .88rem; color: var(--faint); }
+
+  footer { margin: 56px 0 0; padding: 18px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+  footer p { margin: 4px 0; }
+
+  @media (max-width: 760px) {
+    header { padding-top: 32px; }
+    .legend, .room-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 440px) {
+    .time { min-width: 0; }
+    .listen li { grid-template-columns: 1fr; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="venue">Binaural listening examples · ICASSP 2027 submission</div>
+  <h1><span class="name">RayBRIR</span>: Fast Binaural Room Impulse Response Simulation via Learned Ray Pruning and Directional Energy Compensation</h1>
+  <p class="authors">
+    <span>Shaoheng Xu<sup>1,*</sup>,</span>
+    <span>Chunyi Sun<sup>1,*</sup>,</span>
+    <span>Jihui (Aimee) Zhang<sup>1,2</sup>,</span>
+    <span>Amy Bastine<sup>1</sup>,</span>
+    <span>Prasanga N. Samarasinghe<sup>1</sup>,</span>
+    <span>Thushara D. Abhayapala<sup>1</sup></span>
+  </p>
+  <p class="affil">
+    <span><sup>1</sup>The Australian National University, Australia</span>
+    <span><sup>2</sup>The University of Queensland, Australia</span>
+  </p>
+  <p class="note"><sup>*</sup>Equal contribution</p>
+</header>
+
+<div class="callout" role="note">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="1.6"/><rect x="16" y="14" width="5" height="7" rx="1.6"/></svg>
+  <div>
+    <p><strong>Please listen with headphones.</strong> All examples are binaural; loudspeaker playback may remove the spatial cues.</p>
+    <p>Press play, then click a condition (or press <kbd>1</kbd>–<kbd>4</kbd>) to switch instantly at the same time position.</p>
+    <p><kbd>Space</kbd> plays / pauses.</p>
+  </div>
+</div>
+
+<section id="conditions">
+  <h2>Conditions</h2>
+  <p class="lead">Each example renders the same dry source in the same room and listener pose with four methods.</p>
+  <ul class="legend">
+    <li style="--cc: var(--c-ref)">
+      <div class="t"><kbd>1</kbd>Reference <em>Full-order geometric simulator</em></div>
+      <p class="d">Full-order geometric simulation without ray pruning; the target that RayBRIR approximates.</p>
+    </li>
+    <li style="--cc: var(--c-ours)">
+      <div class="t"><kbd>2</kbd>RayBRIR <em>proposed</em></div>
+      <p class="d">Learned ray pruning (MLP<sub>1</sub>) followed by directional energy compensation (MLP<sub>2</sub>).</p>
+    </li>
+    <li style="--cc: var(--c-abl)">
+      <div class="t"><kbd>3</kbd>RayBRIR w/o MLP<sub>2</sub><em>ablation</em></div>
+      <p class="d">Same ray pruning (MLP<sub>1</sub>), but the energy removed by pruning is not compensated.</p>
+    </li>
+    <li style="--cc: var(--c-anc)">
+      <div class="t"><kbd>4</kbd>Anchor <em>HRTF only</em></div>
+      <p class="d">Source convolved with the HRTF only: no reflections, no reverberation.</p>
+    </li>
+  </ul>
+</section>
+
+<section id="listen">
+  <h2>What to listen for</h2>
+  <ol class="listen">
+    <li>
+      <span class="pair"><span class="k" style="--cc: var(--c-ref)">1</span><span class="vs">vs</span><span class="k" style="--cc: var(--c-ours)">2</span></span>
+      <div><b>RayBRIR is very close to the full-order reference.</b>
+        <p>Reverberance, spaciousness and source position should be hard to tell apart.</p></div>
+    </li>
+    <li>
+      <span class="pair"><span class="k" style="--cc: var(--c-ours)">2</span><span class="vs">vs</span><span class="k" style="--cc: var(--c-abl)">3</span></span>
+      <div><b>Removing MLP<sub>2</sub> changes the perceived reverberation time.</b>
+        <p>Without energy compensation, the reverberant tail decays faster and the room sounds drier. It is easiest to hear in speech pauses and at note endings.</p></div>
+    </li>
+    <li>
+      <span class="pair"><span class="k" style="--cc: var(--c-anc)">4</span><span class="vs">vs</span><span class="k" style="--cc: var(--c-ref)">1</span><span class="k" style="--cc: var(--c-ours)">2</span><span class="k" style="--cc: var(--c-abl)">3</span></span>
+      <div><b>The anchor has no room at all.</b>
+        <p>It sounds dry and close to the head. The contrast shows the environmental cues (reverberation, distance, externalization) that the simulated BRIRs add.</p></div>
+    </li>
+  </ol>
+</section>
+
+<section id="examples">
+  <h2>Listening examples</h2>
+
+  <h3>Room 1</h3>
+  <div class="room-grid">
+    <div class="player" data-signal="speech" data-room="Room1" data-title="Speech"></div>
+    <div class="player" data-signal="music"  data-room="Room1" data-title="Music"></div>
+  </div>
+
+  <h3>Room 2</h3>
+  <div class="room-grid">
+    <div class="player" data-signal="speech" data-room="Room2" data-title="Speech"></div>
+    <div class="player" data-signal="music"  data-room="Room2" data-title="Music"></div>
+  </div>
+
+  <p class="hint">Only one example plays at a time. Keyboard shortcuts control the most recently used example.</p>
+  <noscript><p class="hint">The players need JavaScript. The audio files are in the <code>audio/</code> folder.</p></noscript>
+</section>
+
+<footer>
+  <p>Audio: 16 kHz, 16-bit, 2-channel binaural WAV; each clip is peak-normalized.</p>
+  <p>Code will be released upon publication.</p>
+</footer>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Conditions in button order. Files: audio/<signal>_<room>_<id>.wav
+  const CONDS = [
+    { id: 'ref',     label: 'Reference', color: 'var(--c-ref)'  },
+    { id: 'raybrir', label: 'RayBRIR',   color: 'var(--c-ours)' },
+    { id: 'pruned',  label: 'w/o MLP₂',  color: 'var(--c-abl)'  },
+    { id: 'anchor',  label: 'Anchor',    color: 'var(--c-anc)'  },
+  ];
+  const audioPath = (signal, room, cond) => `audio/${signal}_${room}_${cond}.wav`;
+
+  const AC = window.AudioContext || window.webkitAudioContext;
+  // Web Audio gives sample-synchronous switching; file:// pages (local preview) fall back to <audio>.
+  let defaultMode = (AC && location.protocol !== 'file:') ? 'webaudio' : 'html';
+  let ctx = null;
+  const getCtx = () => {
+    if (!ctx) ctx = new AC();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  };
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+
+  const decode = (ac, buf) => new Promise((res, rej) => {
+    const p = ac.decodeAudioData(buf, res, rej);
+    if (p && typeof p.then === 'function') p.then(res, rej);
+  });
+  const fmt = (t) => {
+    t = Math.max(0, t || 0);
+    const m = Math.floor(t / 60), s = Math.floor(t % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const ICONS =
+    '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a.8.8 0 0 0 1.2.7l10.3-6.5a.8.8 0 0 0 0-1.4L9.2 4.8A.8.8 0 0 0 8 5.5z"/></svg>' +
+    '<svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1"/><rect x="13.5" y="5" width="4" height="14" rx="1"/></svg>' +
+    '<svg class="i-load" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+
+  let current = null;   // player that is (or was last) playing
+  let focused = null;   // player that keyboard shortcuts control
+  const decoded = [];   // players holding decoded buffers (small LRU to bound memory)
+
+  class Player {
+    constructor(el) {
+      this.el = el;
+      this.srcs = CONDS.map(c => audioPath(el.dataset.signal, el.dataset.room, c.id));
+      this.mode = defaultMode;
+      this.active = 0;
+      this.playing = false;
+      this.loading = false;
+      this.offset = 0;
+      this.duration = 0;
+      this.buffers = null; this.nodes = null; this.master = null; this.t0 = 0;
+      this.els = null;
+      this.scrubbing = false;
+      this.render();
+      this.probeDuration();
+      this.update();
+    }
+
+    render() {
+      const title = this.el.dataset.title || '';
+      const room = (this.el.dataset.room || '').replace(/(\d+)$/, ' $1');
+      this.el.innerHTML =
+        `<div class="p-head"><span class="p-title">${title}</span><span class="p-status" aria-live="polite"></span></div>` +
+        `<div class="transport">` +
+          `<button type="button" class="play" aria-label="Play ${room} ${title}">${ICONS}</button>` +
+          `<input class="seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek" disabled>` +
+          `<span class="time">0:00 / –:––</span>` +
+        `</div>` +
+        `<div class="conds" role="radiogroup" aria-label="Condition">` +
+          CONDS.map((c, i) =>
+            `<button type="button" class="cond" role="radio" aria-checked="false" style="--cc:${c.color}">` +
+            `<kbd>${i + 1}</kbd><span>${c.label}</span></button>`).join('') +
+        `</div>`;
+      this.playBtn = this.el.querySelector('.play');
+      this.seekEl = this.el.querySelector('.seek');
+      this.timeEl = this.el.querySelector('.time');
+      this.statusEl = this.el.querySelector('.p-status');
+      this.condBtns = [...this.el.querySelectorAll('.cond')];
+
+      this.el.addEventListener('pointerdown', () => setFocused(this));
+      this.playBtn.addEventListener('click', () => { setFocused(this); this.toggle(); });
+      this.condBtns.forEach((b, i) => b.addEventListener('click', () => { setFocused(this); this.select(i); }));
+      this.seekEl.addEventListener('input', () => {
+        this.scrubbing = true;
+        const t = this.seekEl.value / 1000 * this.duration;
+        this.seekEl.style.setProperty('--p', `${this.seekEl.value / 10}%`);
+        this.timeEl.textContent = `${fmt(t)} / ${fmt(this.duration)}`;
+      });
+      this.seekEl.addEventListener('change', () => {
+        this.scrubbing = false;
+        this.seekTo(this.seekEl.value / 1000 * this.duration);
+      });
+    }
+
+    probeDuration() {
+      const a = new Audio();
+      a.preload = 'metadata';
+      a.addEventListener('loadedmetadata', () => {
+        if (isFinite(a.duration) && a.duration > this.duration) { this.duration = a.duration; this.update(); }
+      }, { once: true });
+      a.src = this.srcs[0];
+    }
+
+    status(msg, isErr) {
+      this.statusEl.textContent = msg || '';
+      this.statusEl.classList.toggle('err', !!isErr);
+    }
+
+    // ----- public actions -----
+    toggle() { if (this.loading) return; this.playing ? this.pause() : this.play(); }
+
+    select(i) {
+      if (i < 0 || i >= CONDS.length) return;
+      if (i !== this.active) {
+        const prev = this.active;
+        this.active = i;
+        if (this.playing) this.crossfade(prev, i);
+        else if (this.mode === 'html' && this.els) { try { this.els[i].currentTime = this.offset; } catch (e) {} }
+        this.update();
+      }
+      if (!this.playing && !this.loading) this.play();
+    }
+
+    async play() {
+      if (current && current !== this) current.pause();
+      current = this;
+      if (this.mode === 'webaudio') {
+        const ac = getCtx();                       // created/resumed inside the user gesture
+        if (!this.buffers) {
+          this.setLoading(true);
+          try { await this.loadBuffers(ac); }
+          catch (err) {
+            console.warn('Web Audio loading failed; falling back to <audio> elements.', err);
+            this.mode = defaultMode = 'html';
+          }
+          this.setLoading(false);
+          if (current !== this) return;           // another example was started meanwhile
+        }
+      }
+      if (this.offset >= this.duration - 0.05) this.offset = 0;
+      if (this.mode === 'webaudio') {
+        this.startNodes(this.offset);
+      } else {
+        this.ensureEls();
+        const a = this.els[this.active];
+        try { a.currentTime = this.offset; } catch (e) {}
+        try { await a.play(); }
+        catch (err) { this.status('Playback failed', true); console.warn(err); return; }
+      }
+      this.playing = true;
+      this.status('');
+      this.update();
+      startTicker();
+    }
+
+    pause() {
+      if (!this.playing) return;
+      this.offset = this.position();
+      if (this.mode === 'webaudio') this.stopNodes();
+      else this.els[this.active].pause();
+      this.playing = false;
+      this.update();
+    }
+
+    finish() {
+      if (this.mode === 'webaudio') this.stopNodes();
+      else if (this.els) this.els.forEach(a => a.pause());
+      this.playing = false;
+      this.offset = 0;
+      this.update();
+    }
+
+    seekTo(t) {
+      t = Math.min(Math.max(0, t), Math.max(0, this.duration - 0.01));
+      if (this.playing && this.mode === 'webaudio') { this.stopNodes(); this.startNodes(t); }
+      else if (this.mode === 'html' && this.els) { try { this.els[this.active].currentTime = t; } catch (e) {} }
+      this.offset = t;
+      this.update();
+    }
+
+    position() {
+      if (!this.playing) return this.offset;
+      if (this.mode === 'webaudio') return this.offset + Math.max(0, ctx.currentTime - this.t0);
+      return this.els[this.active].currentTime;
+    }
+
+    // ----- Web Audio engine -----
+    async loadBuffers(ac) {
+      this.status('Loading…');
+      this.buffers = await Promise.all(this.srcs.map(async (src) => {
+        const r = await fetch(src);
+        if (!r.ok) throw new Error(`${src}: HTTP ${r.status}`);
+        return decode(ac, await r.arrayBuffer());
+      }));
+      this.duration = Math.max(this.duration, ...this.buffers.map(b => b.duration));
+      this.status('');
+      decoded.push(this);
+      while (decoded.length > 2) {                // keep at most two examples decoded
+        const old = decoded.shift();
+        if (old.playing) { decoded.push(old); break; }
+        old.buffers = null;
+      }
+    }
+
+    startNodes(offset) {
+      const ac = ctx;
+      const t0 = ac.currentTime + 0.04;
+      this.master = ac.createGain();
+      this.master.gain.setValueAtTime(0, t0);
+      this.master.gain.linearRampToValueAtTime(1, t0 + 0.01);  // short fade-in avoids a click
+      this.master.connect(ac.destination);
+      this.nodes = this.buffers.map((buf, i) => {
+        const s = ac.createBufferSource();
+        const g = ac.createGain();
+        s.buffer = buf;
+        g.gain.value = i === this.active ? 1 : 0;
+        s.connect(g); g.connect(this.master);
+        if (offset < buf.duration) s.start(t0, offset);  // all conditions start on the same sample
+        return { s, g };
+      });
+      this.t0 = t0;
+      this.offset = offset;
+    }
+
+    stopNodes() {
+      if (!this.nodes) return;
+      const ac = ctx, t = ac.currentTime, nodes = this.nodes, m = this.master;
+      this.nodes = this.master = null;
+      m.gain.cancelScheduledValues(t);
+      m.gain.setValueAtTime(m.gain.value, t);
+      m.gain.linearRampToValueAtTime(0, t + 0.015);
+      nodes.forEach(n => { try { n.s.stop(t + 0.02); } catch (e) {} });
+      setTimeout(() => {
+        nodes.forEach(n => { try { n.s.disconnect(); n.g.disconnect(); } catch (e) {} });
+        try { m.disconnect(); } catch (e) {}
+      }, 200);
+    }
+
+    crossfade(from, to) {
+      if (this.mode === 'webaudio') {
+        if (!this.nodes) return;
+        const t = ctx.currentTime, F = 0.012;       // 12 ms linear crossfade
+        this.nodes.forEach((n, i) => {
+          const g = n.g.gain;
+          g.cancelScheduledValues(t);
+          g.setValueAtTime(g.value, t);
+          g.linearRampToValueAtTime(i === to ? 1 : 0, t + F);
+        });
+      } else {
+        const a = this.els[from], b = this.els[to];
+        const t = a.currentTime;
+        try { b.currentTime = t; } catch (e) {}
+        b.play().catch(err => console.warn(err));
+        a.pause();
+      }
+    }
+
+    // ----- <audio> fallback engine -----
+    ensureEls() {
+      if (this.els) return;
+      this.els = this.srcs.map((src) => {
+        const a = new Audio();
+        a.preload = 'auto';
+        a.addEventListener('loadedmetadata', () => {
+          if (isFinite(a.duration) && a.duration > this.duration) { this.duration = a.duration; this.update(); }
+        });
+        a.addEventListener('ended', () => { if (this.playing && a === this.els[this.active]) this.finish(); });
+        a.addEventListener('error', () => this.status('Audio failed to load', true));
+        a.src = src;
+        return a;
+      });
+    }
+
+    // ----- UI -----
+    setLoading(on) {
+      this.loading = on;
+      this.el.classList.toggle('is-loading', on);
+    }
+
+    update() {
+      this.el.style.setProperty('--c', CONDS[this.active].color);
+      this.el.classList.toggle('is-playing', this.playing);
+      this.playBtn.setAttribute('aria-label', (this.playing ? 'Pause ' : 'Play ') + this.el.dataset.title);
+      this.condBtns.forEach((b, i) => b.setAttribute('aria-checked', String(i === this.active)));
+      this.seekEl.disabled = !this.duration;
+      this.updatePosition();
+    }
+
+    updatePosition() {
+      const t = this.position();
+      if (this.playing && this.mode === 'webaudio' && t >= this.duration) { this.finish(); return; }
+      if (this.scrubbing) return;
+      const p = this.duration ? Math.min(1, t / this.duration) : 0;
+      this.seekEl.value = String(Math.round(p * 1000));
+      this.seekEl.style.setProperty('--p', `${(p * 100).toFixed(2)}%`);
+      this.timeEl.textContent = `${fmt(t)} / ${this.duration ? fmt(this.duration) : '–:––'}`;
+    }
+  }
+
+  function setFocused(p) {
+    if (focused === p) return;
+    if (focused) focused.el.classList.remove('is-current');
+    focused = p;
+    p.el.classList.add('is-current');
+  }
+
+  let ticking = false;
+  function startTicker() {
+    if (ticking) return;
+    ticking = true;
+    const loop = () => {
+      if (current && current.playing) { current.updatePosition(); requestAnimationFrame(loop); }
+      else ticking = false;
+    };
+    requestAnimationFrame(loop);
+  }
+
+  const players = [...document.querySelectorAll('.player')].map(el => new Player(el));
+
+  // Keyboard: Space = play/pause, 1–4 = condition (applies to the most recently used example)
+  const isSpace = (e) => e.code === 'Space' || e.key === ' ';
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || !players.length) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === 'TEXTAREA' || (tag === 'INPUT' && e.target.type !== 'range')) return;
+    const p = focused || players[0];
+    if (isSpace(e)) { e.preventDefault(); if (!e.repeat) { setFocused(p); p.toggle(); } }
+    else if (/^[1-4]$/.test(e.key)) { e.preventDefault(); setFocused(p); p.select(Number(e.key) - 1); }
+  });
+  // Stop Space from also "clicking" a focused button on key release.
+  document.addEventListener('keyup', (e) => { if (isSpace(e) && e.target.tagName === 'BUTTON') e.preventDefault(); });
+})();
+</script>
+</body>
+</html>
